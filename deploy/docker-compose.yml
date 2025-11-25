@@ -1,0 +1,184 @@
+services:
+  db:
+    image: ankane/pgvector:latest
+    container_name: surfsense-db
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./volumes/postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-surfsense}
+    networks:
+      - surfsense-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: surfsense-pgadmin
+    restart: unless-stopped
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@surfsense.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-surfsense}
+    volumes:
+      - ./volumes/pgadmin_data:/var/lib/pgadmin
+    networks:
+      - surfsense-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    container_name: surfsense-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ./volumes/redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - surfsense-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ${DOCKER_REGISTRY:-docker.at.nullest.com}/surfsense-backend:${BACKEND_IMAGE_TAG:-latest}
+    container_name: surfsense-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./volumes/shared_temp:/tmp
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-surfsense}
+      - CELERY_BROKER_URL=redis://redis:${REDIS_PORT:-6379}/0
+      - CELERY_RESULT_BACKEND=redis://redis:${REDIS_PORT:-6379}/0
+      - PYTHONPATH=/app
+      - UVICORN_LOOP=asyncio
+      - UNSTRUCTURED_HAS_PATCHED_LOOP=1
+      - LANGCHAIN_TRACING_V2=false
+      - LANGSMITH_TRACING=false
+    networks:
+      - surfsense-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Run these services separately in production if needed
+  # celery_worker:
+  #   image: ${DOCKER_REGISTRY:-docker.at.nullest.com}/surfsense-backend:${BACKEND_IMAGE_TAG:-latest}
+  #   container_name: surfsense-celery-worker
+  #   restart: unless-stopped
+  #   command: celery -A app.celery_app worker --loglevel=info --concurrency=1 --pool=solo
+  #   volumes:
+  #     - ./volumes/shared_temp:/tmp
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-surfsense}
+  #     - CELERY_BROKER_URL=redis://redis:${REDIS_PORT:-6379}/0
+  #     - CELERY_RESULT_BACKEND=redis://redis:${REDIS_PORT:-6379}/0
+  #     - PYTHONPATH=/app
+  #   networks:
+  #     - surfsense-network
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     backend:
+  #       condition: service_healthy
+
+  # celery_beat:
+  #   image: ${DOCKER_REGISTRY:-docker.at.nullest.com}/surfsense-backend:${BACKEND_IMAGE_TAG:-latest}
+  #   container_name: surfsense-celery-beat
+  #   restart: unless-stopped
+  #   command: celery -A app.celery_app beat --loglevel=info
+  #   volumes:
+  #     - ./volumes/shared_temp:/tmp
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-surfsense}
+  #     - CELERY_BROKER_URL=redis://redis:${REDIS_PORT:-6379}/0
+  #     - CELERY_RESULT_BACKEND=redis://redis:${REDIS_PORT:-6379}/0
+  #     - PYTHONPATH=/app
+  #   networks:
+  #     - surfsense-network
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     celery_worker:
+  #       condition: service_started
+
+  # flower:
+  #   image: ${DOCKER_REGISTRY:-docker.at.nullest.com}/surfsense-backend:${BACKEND_IMAGE_TAG:-latest}
+  #   container_name: surfsense-flower
+  #   restart: unless-stopped
+  #   command: celery -A app.celery_app flower --port=5555
+  #   ports:
+  #     - "${FLOWER_PORT:-5555}:5555"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - CELERY_BROKER_URL=redis://redis:${REDIS_PORT:-6379}/0
+  #     - CELERY_RESULT_BACKEND=redis://redis:${REDIS_PORT:-6379}/0
+  #     - PYTHONPATH=/app
+  #   networks:
+  #     - surfsense-network
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #     celery_worker:
+  #       condition: service_started
+
+  frontend:
+    image: ${DOCKER_REGISTRY:-docker.at.nullest.com}/surfsense-frontend:${FRONTEND_IMAGE_TAG:-latest}
+    container_name: surfsense-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    env_file:
+      - .env
+    networks:
+      - surfsense-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  surfsense-network:
+    driver: bridge
+
+# Note: Volumes are bind-mounted to ./volumes/ directory
+# No named volumes used for production deployment
