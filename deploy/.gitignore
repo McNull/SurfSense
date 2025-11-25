@@ -1,0 +1,17 @@
+# Environment file (contains secrets)
+.env
+
+# Volume directories (data persistence)
+volumes/
+
+# Log files
+*.log
+
+# Backup files
+*.backup
+*.bak
+
+# Temporary files
+*.tmp
+*.swp
+*~

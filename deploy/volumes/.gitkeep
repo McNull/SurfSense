@@ -1,0 +1,2 @@
+# This file ensures the volumes directory structure exists in git
+# The actual volume directories will be created at runtime
