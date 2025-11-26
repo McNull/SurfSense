@@ -3,6 +3,7 @@
 
 # Volume directories (data persistence)
 volumes/
+!volumes/.gitkeep
 
 # Log files
 *.log

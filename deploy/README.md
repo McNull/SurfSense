@@ -18,7 +18,7 @@ nano .env  # or vim, code, etc.
 - `POSTGRES_PASSWORD` - Strong database password (replace `<CHANGE_ME_STRONG_PASSWORD>`)
 - `PGADMIN_DEFAULT_PASSWORD` - Strong pgAdmin password (replace `<CHANGE_ME_STRONG_PASSWORD>`)
 - `SECRET_KEY` - Application secret key (generate with `openssl rand -hex 32`)
-- `NEXT_PUBLIC_FASTAPI_BACKEND_URL` - Already set to `https://surfsense.at.nullest.com/api`
+- `NEXT_PUBLIC_FASTAPI_BACKEND_URL` - Set to your production API URL (e.g., `https://your-domain.com/api`)
 - API keys (FIRECRAWL_API_KEY, etc.) - Add your actual keys
 - OAuth credentials (if using Google auth) - Add your client ID and secret
 
@@ -72,7 +72,7 @@ If you need to build images locally (for development or custom builds):
 
 ### Prerequisites
 - Docker with BuildKit enabled
-- Access to docker.at.nullest.com registry (credentials configured)
+- Access to your Docker registry (credentials configured)
 - Sufficient disk space for builds (~5GB for backend, ~1GB for frontend)
 
 ### Build Scripts
@@ -131,12 +131,12 @@ ${DOCKER_REGISTRY}/${IMAGE_NAME}:${VERSION}[-${POSTFIX}]
 ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
 
 Examples:
-- docker.at.nullest.com/surfsense-backend:0.0.8
-- docker.at.nullest.com/surfsense-backend:0.0.8-rc1
-- docker.at.nullest.com/surfsense-backend:latest
-- docker.at.nullest.com/surfsense-frontend:0.0.8
-- docker.at.nullest.com/surfsense-frontend:0.0.8-hotfix
-- docker.at.nullest.com/surfsense-frontend:latest
+- your-registry.com/surfsense-backend:0.0.8
+- your-registry.com/surfsense-backend:0.0.8-rc1
+- your-registry.com/surfsense-backend:latest
+- your-registry.com/surfsense-frontend:0.0.8
+- your-registry.com/surfsense-frontend:0.0.8-hotfix
+- your-registry.com/surfsense-frontend:latest
 ```
 
 ### Updating Versions
@@ -172,7 +172,7 @@ To deploy a new version:
 **IMPORTANT**: The frontend uses Next.js, which embeds `NEXT_PUBLIC_*` variables at build time.
 
 **Build-time variables** (embedded in frontend image, cannot change at runtime):
-- `NEXT_PUBLIC_FASTAPI_BACKEND_URL` - Set to `https://surfsense.at.nullest.com/api`
+- `NEXT_PUBLIC_FASTAPI_BACKEND_URL` - Set to your production API URL (e.g., `https://your-domain.com/api`)
 - `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` - LOCAL or GOOGLE
 - `NEXT_PUBLIC_ETL_SERVICE` - DOCLING, UNSTRUCTURED, or LLAMACLOUD
 
@@ -506,7 +506,7 @@ Example nginx configuration:
 ```nginx
 server {
     listen 443 ssl;
-    server_name surfsense.at.nullest.com;
+    server_name your-domain.com;
 
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;

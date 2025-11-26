@@ -41,7 +41,12 @@ echo -e "  Frontend Version: ${GREEN}${FRONTEND_VERSION}${NC}"
 echo ""
 
 # Registry configuration
-REGISTRY="${DOCKER_REGISTRY:-docker.at.nullest.com}"
+REGISTRY="${DOCKER_REGISTRY}"
+if [ -z "$REGISTRY" ]; then
+    echo -e "${RED}ERROR: DOCKER_REGISTRY environment variable is not set${NC}"
+    echo "Please set DOCKER_REGISTRY in deploy/.env"
+    exit 1
+fi
 echo -e "${YELLOW}Registry: ${REGISTRY}${NC}"
 echo ""
 
@@ -89,7 +94,12 @@ build_frontend() {
     echo ""
 
     # Read NEXT_PUBLIC variables from .env
-    NEXT_PUBLIC_BACKEND_URL="${NEXT_PUBLIC_FASTAPI_BACKEND_URL:-https://surfsense.at.nullest.com/api}"
+    NEXT_PUBLIC_BACKEND_URL="${NEXT_PUBLIC_FASTAPI_BACKEND_URL}"
+    if [ -z "$NEXT_PUBLIC_BACKEND_URL" ]; then
+        echo -e "${RED}ERROR: NEXT_PUBLIC_FASTAPI_BACKEND_URL environment variable is not set${NC}"
+        echo "Please set NEXT_PUBLIC_FASTAPI_BACKEND_URL in deploy/.env"
+        exit 1
+    fi
     NEXT_PUBLIC_AUTH_TYPE="${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE:-LOCAL}"
     NEXT_PUBLIC_ETL="${NEXT_PUBLIC_ETL_SERVICE:-DOCLING}"
 
